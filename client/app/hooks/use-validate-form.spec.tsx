@@ -13,7 +13,7 @@ describe("auth form validation", () => {
 			};
 
 			const state = validateReducerFn(loginFormState, { type: "login", payload: loginForm });
-			expect(state.emailInput?.errorMessage).toMatch(/invalid email/i);
+			expect(state.emailInputError?.errorMessage).toMatch(/invalid email/i);
 			expect(state.isValid).toBe(false);
 		});
 
@@ -21,8 +21,11 @@ describe("auth form validation", () => {
 			const loginFormState: AuthFormState = {
 				isValid: false,
 			};
-			const state = validateReducerFn(loginFormState, { type: "login", payload: { email: "", password: "rwerwerwe" } });
-			expect(state.emailInput?.errorMessage).toMatch(/can't be empty/i);
+			const state = validateReducerFn(loginFormState, {
+				type: "login",
+				payload: { email: "", password: "rwerwerwe" },
+			});
+			expect(state.emailInputError?.errorMessage).toMatch(/can't be empty/i);
 			expect(state.isValid).toBeFalsy();
 		});
 
@@ -35,7 +38,7 @@ describe("auth form validation", () => {
 				type: "login",
 				payload: { email: "asds@sddd.com", password: "aasdaggs" },
 			});
-			expect(state.emailInput?.errorMessage).toBe("");
+			expect(state.emailInputError?.errorMessage).toBe("");
 			expect(state.isValid).toBe(true);
 		});
 
@@ -48,7 +51,7 @@ describe("auth form validation", () => {
 				type: "login",
 				payload: { email: "asds@sddd.com", password: "wer" },
 			});
-			expect(state.passwordInput?.errorMessage).toMatch(/at least 8 characters/i);
+			expect(state.passwordInputError?.errorMessage).toMatch(/at least 8 characters/i);
 			expect(state.isValid).toBeFalsy();
 		});
 
@@ -60,7 +63,7 @@ describe("auth form validation", () => {
 				type: "login",
 				payload: { email: "asds@sddd.com", password: "" },
 			});
-			expect(state.passwordInput?.errorMessage).toMatch(/can't be empty/i);
+			expect(state.passwordInputError?.errorMessage).toMatch(/can't be empty/i);
 			expect(state.isValid).toBeFalsy();
 		});
 
@@ -73,7 +76,7 @@ describe("auth form validation", () => {
 				type: "login",
 				payload: { email: "asds@sddd.com", password: "werwerewrr" },
 			});
-			expect(state.passwordInput?.errorMessage).toBe("");
+			expect(state.passwordInputError?.errorMessage).toBe("");
 			expect(state.isValid).toBeTruthy();
 		});
 	});

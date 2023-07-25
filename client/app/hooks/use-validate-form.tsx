@@ -1,52 +1,88 @@
-import type { AuthForm, AuthFormState, AuthInputState } from "../types/auth";
-import { useReducer } from "react";
+import type { AuthForm, AuthFormState, AuthInputError } from "../types/auth";
+import { useEffect, useReducer, useState } from "react";
 import { validateEmail } from "../utils";
+import { Response, SignUpErrorPayload, SignUpResponsePayload, SignUpSuccessPayload } from "../types";
+import { doSignUp as signUp } from "../auth/auth.utils";
+
 type DispatchType = {
 	type: "login" | "signup";
-	payload: AuthForm;
+	payload: AuthForm | SignUpErrorPayload;
+};
+
+const defaultAuthInputState: AuthInputError = {
+	isError: false,
+	errorMessage: "",
 };
 
 export const validateReducerFn: React.Reducer<AuthFormState, DispatchType> = (state, action) => {
 	if (action.type === "login") {
-		const { email, password } = action.payload;
-		const { emailInputState, passwordInputState } = validateLoginForm({ email, password });
+		const { email, password } = action.payload as AuthForm;
+		const { emailInputState, passwordInputState } = validateLoginForm({ email: email, password: password });
 
 		return {
 			isValid: !emailInputState.isError && !passwordInputState.isError,
-			emailInput: emailInputState,
-			passwordInput: passwordInputState,
+			emailInputError: emailInputState,
+			passwordInputError: passwordInputState,
+			email,
+			password,
 		};
 	} else if (action.type === "signup") {
-		const { email, password, repeatPassword } = action.payload;
-		const { emailInputState, passwordInputState, repeatPasswordInputState } = validateSignUpForm({
+		const { email, password, repeatPassword } = action.payload as AuthForm;
+		const { emailInputError, passwordInputError, repeatPasswordInputError } = validateSignUpForm({
 			email,
 			password,
 			repeatPassword,
 		});
+		const isValid = !emailInputError.isError && !passwordInputError.isError && !repeatPasswordInputError.isError;
+
 		return {
-			isValid: !emailInputState.isError && !passwordInputState.isError && !repeatPasswordInputState.isError,
-			emailInput: emailInputState,
-			passwordInput: passwordInputState,
-			repeatPasswordInput: repeatPasswordInputState,
+			isValid,
+			emailInputError,
+			passwordInputError,
+			repeatPasswordInputError,
+			email,
+			password,
+			repeatPassword,
 		};
 	}
 	return state;
 };
 const intState: AuthFormState = {
 	isValid: false,
+	email: "",
+	password: "",
 };
-export const useValidateAuthForm = (): [AuthFormState, React.Dispatch<DispatchType>] => {
+export const useValidateAuthForm = (): [
+	AuthFormState,
+	React.Dispatch<DispatchType>,
+	SignUpResponsePayload,
+	boolean,
+] => {
 	const [state, dispatch] = useReducer<React.Reducer<AuthFormState, DispatchType>>(validateReducerFn, intState);
-	return [state, dispatch];
+	const { email, password, repeatPassword } = state;
+	const [payload, setPayload] = useState<SignUpResponsePayload | null>();
+	const [isError, setIsError] = useState<boolean>(false);
+	useEffect(() => {
+		setIsError(false);
+		setPayload(null);
+		if (state.isValid) {
+			if (!!repeatPassword)
+				signUp({ email, password, repeatPassword }).then((res: Response) => {
+					if (res.statusCode !== 201) setIsError(true);
+					setPayload(res.payload);
+				});
+		}
+	}, [state.email, state.password, state.repeatPassword]);
+	return [state, dispatch, payload!, isError];
 };
 
 function validateLoginForm(loginForm: AuthForm) {
-	const { email, password } = loginForm;
-	let emailInputState: AuthInputState = {
+	const { email: email, password: password } = loginForm;
+	let emailInputState: AuthInputError = {
 		isError: false,
 		errorMessage: "",
 	};
-	let passwordInputState: AuthInputState = {
+	let passwordInputState: AuthInputError = {
 		isError: false,
 		errorMessage: "",
 	};
@@ -74,21 +110,10 @@ function validateLoginForm(loginForm: AuthForm) {
 }
 
 function validateSignUpForm(signUpForm: AuthForm) {
-	const { email, password, repeatPassword } = signUpForm;
-	let emailInputState: AuthInputState = {
-		isError: false,
-		errorMessage: "",
-	};
-
-	let passwordInputState: AuthInputState = {
-		isError: false,
-		errorMessage: "",
-	};
-
-	let repeatPasswordInputState: AuthInputState = {
-		isError: false,
-		errorMessage: "",
-	};
+	const { email: email, password: password, repeatPassword: repeatPassword } = signUpForm;
+	let emailInputState: AuthInputError = { ...defaultAuthInputState };
+	let passwordInputState: AuthInputError = { ...defaultAuthInputState };
+	let repeatPasswordInputState: AuthInputError = { ...defaultAuthInputState };
 
 	if (!email || email.length === 0)
 		emailInputState = {
@@ -122,5 +147,9 @@ function validateSignUpForm(signUpForm: AuthForm) {
 			errorMessage: "Password does not match",
 		};
 
-	return { emailInputState, passwordInputState, repeatPasswordInputState };
+	return {
+		emailInputError: emailInputState,
+		passwordInputError: passwordInputState,
+		repeatPasswordInputError: repeatPasswordInputState,
+	};
 }

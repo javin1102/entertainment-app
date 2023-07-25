@@ -29,12 +29,12 @@ const Login = () => {
 			<AuthFormLayout>
 				<h1 className="heading-lg-text">Login</h1>
 				<AuthInput
-					inputState={state.emailInput}
+					errorMessage={state.emailInputError?.errorMessage}
 					ref={emailRef}
 					attributes={{ placeholder: "Email Address", type: "email" }}
 				/>
 				<AuthInput
-					inputState={state.passwordInput}
+					errorMessage={state.passwordInputError?.errorMessage}
 					ref={passwordRef}
 					attributes={{ placeholder: "Password", type: "password" }}
 				/>
