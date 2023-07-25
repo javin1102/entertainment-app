@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	@apply bg-dark-blue;
+}
+html {
+	@apply text-white;
+	font-size: 70%;
+}
+@media (prefers-color-scheme: dark) {
+}
+@media (min-width: 640px) {
+	html {
+		font-size: 80%;
+	}
+}
+
+@media (min-width: 768px) {
+	html {
+		font-size: 90%;
+	}
+}
+
+@media (min-width: 1024px) {
+	html {
+		font-size: 100%;
+	}
+}
+
+@layer base {
+	.body-sm-text {
+		font-size: 0.8125rem;
+		@apply font-light text-white;
+	}
+
+	.body-md-text {
+		font-size: 0.9375rem;
+		@apply font-light text-white;
+	}
+
+	.heading-xs-text {
+		font-size: 1.125rem;
+		@apply font-medium text-white;
+	}
+
+	.heading-sm-text {
+		font-size: 1.5rem;
+		@apply font-medium text-white;
+	}
+
+	.heading-md-text {
+		font-size: 1.5rem;
+		@apply font-light text-white;
+	}
+
+	.heading-lg-text {
+		font-size: 2rem;
+		@apply font-light text-white;
+	}
+}
