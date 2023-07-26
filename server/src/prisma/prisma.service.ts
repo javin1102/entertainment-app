@@ -4,7 +4,6 @@ import { ConfigService } from "@nestjs/config";
 @Injectable()
 export class PrismaService extends PrismaClient {
 	constructor(config: ConfigService) {
-		console.log(config.get("DATABASE_URL"));
 		super({
 			datasources: {
 				db: {

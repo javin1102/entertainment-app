@@ -6,13 +6,14 @@ import * as argon from "argon2";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { ConfigService } from "@nestjs/config";
-import { ResponseAPI } from "src/types";
+import { RefreshTokenPayload, ResponseAPI } from "src/types";
+import { Response } from "express";
 @Injectable()
 export class AuthService {
 	constructor(private prisma: PrismaService, private jwt: JwtService, private config: ConfigService) {}
 
-	async signUp(signUpDTO: SignUpDTO) {
-		const { email, password, repeatPassword } = signUpDTO;
+	async signUp(signUpDTO: SignUpDTO, res: Response) {
+		const { email, password } = signUpDTO;
 		const hashedPassword = await argon.hash(password);
 		try {
 			const user = await this.prisma.user.create({
@@ -23,23 +24,19 @@ export class AuthService {
 				},
 			});
 
-			if (password !== repeatPassword) {
-				const response: ResponseAPI = {
-					message: "Sign up failed",
-					payload: { repeatPassword: "Password does not match" },
-					statusCode: 400,
-				};
-				throw new BadRequestException(response);
-			}
-
-			const payload = { sub: user.id, email: user.email };
-			const access_token = await this.jwt.signAsync(payload, { secret: this.config.get("JWT_SECRET") });
+			const { access_token, refresh_token } = await this.getTokens(user.id, user.email);
+			await this.updateRefreshTokenHash({ userId: user.id, refresh_token });
 			const response: ResponseAPI = {
 				message: "Sign up success",
-				payload: { access_token },
+				payload: { access_token, refresh_token },
 				statusCode: 201,
 			};
-			return response;
+			res.cookie("refresh_token", refresh_token, {
+				httpOnly: true,
+				expires: new Date(new Date().getTime() + 30000),
+				sameSite: "strict",
+			});
+			return res.status(201).send(response);
 		} catch (err) {
 			if (err instanceof PrismaClientKnownRequestError) {
 				if (err.code === "P2002") {
@@ -63,7 +60,7 @@ export class AuthService {
 		}
 	}
 
-	async login(loginDTO: LoginDTO) {
+	async login(loginDTO: LoginDTO, res: Response) {
 		try {
 			const user = await this.prisma.user.findFirstOrThrow({
 				where: {
@@ -77,15 +74,24 @@ export class AuthService {
 					payload: {
 						password: "Password does not match",
 					},
-					message: "Signed up failed",
-					statusCode: 403,
+					message: "Sign in failed",
+					statusCode: 400,
 				};
-				throw new ForbiddenException(response);
+				return res.status(400).send(response);
 			}
-			const payload = { sub: user.id, email: user.email };
-			return {
-				access_token: await this.jwt.signAsync(payload, { secret: this.config.get("JWT_SECRET") }),
+			const { access_token, refresh_token } = await this.getTokens(user.id, user.email);
+			await this.updateRefreshTokenHash({ userId: user.id, refresh_token });
+			const response: ResponseAPI = {
+				message: "Sign in success",
+				payload: { access_token, refresh_token },
+				statusCode: 200,
 			};
+			res.cookie("refresh_token", refresh_token, {
+				httpOnly: true,
+				expires: new Date(new Date().getTime() + 30000),
+				sameSite: "strict",
+			});
+			return res.send(response);
 		} catch (err) {
 			if (err instanceof PrismaClientKnownRequestError) {
 				if (err.code === "P2025") {
@@ -94,11 +100,60 @@ export class AuthService {
 							email: "Email does not exists",
 						},
 						message: "Signed up failed",
-						statusCode: 403,
+						statusCode: 400,
 					};
-					throw new ForbiddenException(response);
+					throw new BadRequestException(response);
 				}
 			}
 		}
+	}
+
+	async refreshTokens({ userId, refresh_token }: RefreshTokenPayload) {
+		const user = await this.prisma.user.findUnique({
+			where: {
+				id: userId,
+			},
+		});
+		if (!user) throw new ForbiddenException("Access Denied");
+
+		const rtMatches = await argon.verify(user.hashedRefreshToken, refresh_token);
+		if (!rtMatches) throw new ForbiddenException("Access Denied");
+		const { access_token, refresh_token: newRefreshToken } = await this.getTokens(user.id, user.email);
+		await this.updateRefreshTokenHash({ userId: user.id, refresh_token: newRefreshToken });
+		const response: ResponseAPI = {
+			message: "Refresh token success",
+			payload: { access_token, refresh_token },
+			statusCode: 200,
+		};
+		return response;
+	}
+
+	async getTokens(userId: string, email: string) {
+		const payload = { userId, email };
+
+		const [access_token, refresh_token] = await Promise.all([
+			this.jwt.signAsync(payload, {
+				secret: this.config.get("ACCESS_JWT_SECRET"),
+				expiresIn: "30",
+			}),
+			this.jwt.signAsync(payload, {
+				secret: this.config.get("REFRESH_JWT_SECRET"),
+				expiresIn: "7d",
+			}),
+		]);
+
+		return { access_token, refresh_token };
+	}
+
+	async updateRefreshTokenHash({ userId, refresh_token }: RefreshTokenPayload) {
+		const hashedRefreshToken = await argon.hash(refresh_token);
+		await this.prisma.user.update({
+			where: {
+				id: userId,
+			},
+			data: {
+				hashedRefreshToken,
+			},
+		});
 	}
 }

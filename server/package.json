@@ -9,6 +9,7 @@
 		"db:dev:rm": "docker-compose rm -s -f -v postgres",
 		"db:dev:up": "docker-compose up -d postgres",
 		"db:dev:restart": "npm run db:dev:rm && npm run db:dev:up",
+		"prisma:dev:migrate": "npx dotenv -e .env.local prisma migrate dev",
 		"prisma:dev:studio": "dotenv -e .env.local -- npx prisma studio",
 		"prisma:test:deploy": "dotenv -e .env.test -- prisma migrate deploy",
 		"db:test:rm": "docker-compose rm -s -f -v postgres-test",

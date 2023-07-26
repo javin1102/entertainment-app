@@ -3,3 +3,11 @@ export type ResponseAPI = {
 	message: string;
 	statusCode: number;
 };
+
+export type RefreshTokenPayload = {
+	userId: string;
+	refresh_token: string;
+	email?: string;
+	iat?: number;
+	exp?: number;
+};

@@ -63,8 +63,6 @@ export const useValidateAuthForm = (): [
 	const [payload, setPayload] = useState<SignUpResponsePayload | null>();
 	const [isError, setIsError] = useState<boolean>(false);
 	useEffect(() => {
-		setIsError(false);
-		setPayload(null);
 		if (state.isValid) {
 			if (!!repeatPassword)
 				signUp({ email, password, repeatPassword }).then((res: Response) => {
@@ -72,6 +70,10 @@ export const useValidateAuthForm = (): [
 					setPayload(res.payload);
 				});
 		}
+		return () => {
+			setIsError(false);
+			setPayload(null);
+		};
 	}, [state.email, state.password, state.repeatPassword]);
 	return [state, dispatch, payload!, isError];
 };

@@ -1,4 +1,4 @@
-import { IsEmail, Length, ValidateIf } from "class-validator";
+import { IsEmail, IsString, Length, ValidateIf } from "class-validator";
 
 export class ValidationErrorDTO {
 	property: string;
@@ -6,9 +6,11 @@ export class ValidationErrorDTO {
 }
 
 export class LoginDTO {
+	@ValidateIf(() => false)
 	@IsEmail({}, {})
 	email: string;
-
+	@ValidateIf(() => false)
+	@IsString({})
 	password: string;
 }
 
