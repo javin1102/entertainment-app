@@ -1,4 +1,3 @@
-import { AuthInputError } from "@/app/types/auth";
 import React, { forwardRef } from "react";
 
 export const AuthInput: React.FC<{

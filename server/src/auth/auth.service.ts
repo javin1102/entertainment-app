@@ -31,11 +31,7 @@ export class AuthService {
 				payload: { access_token, refresh_token },
 				statusCode: 201,
 			};
-			res.cookie("refresh_token", refresh_token, {
-				httpOnly: true,
-				expires: new Date(new Date().getTime() + 30000),
-				sameSite: "strict",
-			});
+			this.sendRefreshTokenCookie(refresh_token, res);
 			return res.status(201).send(response);
 		} catch (err) {
 			if (err instanceof PrismaClientKnownRequestError) {
@@ -86,11 +82,7 @@ export class AuthService {
 				payload: { access_token, refresh_token },
 				statusCode: 200,
 			};
-			res.cookie("refresh_token", refresh_token, {
-				httpOnly: true,
-				expires: new Date(new Date().getTime() + 30000),
-				sameSite: "strict",
-			});
+			this.sendRefreshTokenCookie(refresh_token, res);
 			return res.send(response);
 		} catch (err) {
 			if (err instanceof PrismaClientKnownRequestError) {
@@ -108,16 +100,27 @@ export class AuthService {
 		}
 	}
 
-	async refreshTokens({ userId, refresh_token }: RefreshTokenPayload) {
+	async refreshTokens({ userId, refresh_token }: RefreshTokenPayload, res: Response) {
 		const user = await this.prisma.user.findUnique({
 			where: {
 				id: userId,
 			},
 		});
-		if (!user) throw new ForbiddenException("Access Denied");
+		const userNotFoundResponse: ResponseAPI = {
+			message: "User not found",
+			payload: {},
+			statusCode: 400,
+		};
+		if (!user) throw new BadRequestException(userNotFoundResponse);
 
 		const rtMatches = await argon.verify(user.hashedRefreshToken, refresh_token);
-		if (!rtMatches) throw new ForbiddenException("Access Denied");
+		const unmatchRefreshTokenResponse: ResponseAPI = {
+			message: "Invalid refresh token",
+			payload: {},
+			statusCode: 403,
+		};
+		if (!rtMatches) throw new ForbiddenException(unmatchRefreshTokenResponse);
+
 		const { access_token, refresh_token: newRefreshToken } = await this.getTokens(user.id, user.email);
 		await this.updateRefreshTokenHash({ userId: user.id, refresh_token: newRefreshToken });
 		const response: ResponseAPI = {
@@ -125,7 +128,8 @@ export class AuthService {
 			payload: { access_token, refresh_token },
 			statusCode: 200,
 		};
-		return response;
+		this.sendRefreshTokenCookie(newRefreshToken, res);
+		return res.status(200).send(response);
 	}
 
 	async getTokens(userId: string, email: string) {
@@ -134,7 +138,7 @@ export class AuthService {
 		const [access_token, refresh_token] = await Promise.all([
 			this.jwt.signAsync(payload, {
 				secret: this.config.get("ACCESS_JWT_SECRET"),
-				expiresIn: "30",
+				expiresIn: "15m",
 			}),
 			this.jwt.signAsync(payload, {
 				secret: this.config.get("REFRESH_JWT_SECRET"),
@@ -143,6 +147,14 @@ export class AuthService {
 		]);
 
 		return { access_token, refresh_token };
+	}
+
+	sendRefreshTokenCookie(refreshToken: string, res: Response) {
+		res.cookie("refresh_token", refreshToken, {
+			httpOnly: true,
+			expires: new Date(new Date().getTime() + 1000 * 6 * 15),
+			sameSite: "strict",
+		});
 	}
 
 	async updateRefreshTokenHash({ userId, refresh_token }: RefreshTokenPayload) {

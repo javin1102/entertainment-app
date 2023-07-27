@@ -4,7 +4,7 @@ import { LoginDTO, SignUpDTO } from "./dto/auth.dto";
 import { SignUpPipe } from "../pipe/SignUp.pipe";
 import { Response as ExpressResponse, Request } from "express";
 import { LoginPipe } from "src/pipe/Login.pipe";
-import { RefreshTokenPayload } from "src/types";
+import { RefreshTokenPayload, ResponseAPI } from "src/types";
 import { AuthGuard } from "@nestjs/passport";
 @Controller("auth")
 export class AuthController {
@@ -21,12 +21,20 @@ export class AuthController {
 		return this.authService.login(loginDTO, res);
 	}
 
+	@UseGuards(AuthGuard("jwt-access"))
+	@Post("/access")
+	accessToken(): ResponseAPI {
+		return {
+			message: "Authorized",
+			payload: {},
+			statusCode: 200,
+		};
+	}
 	@UseGuards(AuthGuard("jwt-refresh"))
 	@Post("/refresh")
-	refreshTokens(@Req() req: Request) {
+	refreshTokens(@Req() req: Request, @Response() res: ExpressResponse) {
 		const { user } = req;
 		const { userId, refresh_token } = user as RefreshTokenPayload;
-		return this.authService.refreshTokens({ userId, refresh_token });
-		// return user;
+		return this.authService.refreshTokens({ userId, refresh_token }, res);
 	}
 }

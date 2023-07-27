@@ -1,4 +1,4 @@
-export type AuthInputError = {
+export type AuthError = {
 	isError: boolean;
 	errorMessage?: string;
 };
@@ -11,7 +11,7 @@ export interface AuthForm {
 
 export interface AuthFormState extends AuthForm {
 	isValid: boolean;
-	emailInputError?: AuthInputError;
-	passwordInputError?: AuthInputError;
-	repeatPasswordInputError?: AuthInputError;
+	emailError?: AuthError;
+	passwordError?: AuthError;
+	repeatPasswordError?: AuthError;
 }
